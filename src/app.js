@@ -32,8 +32,45 @@ const serializeTodo = todo => ({
 
 app
   .route('/v1/todos')
-  .get(/* Your code here */)
-  .post(/* Your code here */)
+  .get((req, res, next) => {
+    TodoService.getTodos(
+      req.app.get('db'),
+    )
+      .then(todo => {
+        if(!todo) {
+          return res.status(404).json({
+            error: { message: `Todo doesn't exist` }
+          })
+        }
+        res.send(todo)
+        next()
+      })
+      .catch(next)
+    })
+  .post(jsonParser, (req, res, next) => {
+    const { title, completed } = req.body
+    const todoToInsert = { title, completed }
+
+    const numberOfValues = Object.values(todoToInsert).filter(Boolean).length
+    if (numberOfValues === 0)
+      return res.status(400).json({
+        error: {
+          message: `Request body must content either 'title' or 'completed'`
+        }
+      })
+
+    TodoService.insertTodo(
+      req.app.get('db'),
+      todoToInsert
+    )
+      .then(insertedTodo => {
+        res
+          .location(path.posix.join(req.originalUrl, `${insertedTodo.id}`))
+          .status(201)
+          .json(serializeTodo(insertedTodo))
+      })
+      .catch(next)
+  })
 
 app
   .route('/v1/todos/:todo_id')
